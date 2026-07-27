@@ -73,7 +73,7 @@ function requireId(body, field = "id") {
 
 export async function startServer({ port = 7373, host = "127.0.0.1", cwd = process.cwd(), distDir } = {}) {
   const store = await resolveStore({ cwd });
-  const bd = createBd({ beadsDir: store.beadsDir });
+  const bd = createBd({ beadsDir: store.beadsDir, cwd });
   const token = createToken();
   const clients = new Set();
 

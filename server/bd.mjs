@@ -25,7 +25,7 @@ export class BdError extends Error {
   }
 }
 
-function run(argv, { beadsDir, bin = "bd" }) {
+function run(argv, { beadsDir, bin = "bd", cwd = process.cwd() }) {
   return new Promise((resolve, reject) => {
     // shell: false is the default and must stay that way. Node's own docs say never
     // to pass unsanitized input to a shell, and `shell: true` with an args array is
@@ -33,6 +33,9 @@ function run(argv, { beadsDir, bin = "bd" }) {
     const child = spawn(bin, argv, {
       shell: false,
       windowsHide: true,
+      // Passed explicitly: bd discovers the store by walking up from its working
+      // directory, so dropping this would resolve a different project's issues.
+      cwd,
       timeout: TIMEOUT_MS,
       env: {
         PATH: process.env.PATH,
@@ -117,7 +120,7 @@ function assertArgs(args) {
   }
 }
 
-export function createBd({ beadsDir, bin = "bd" }) {
+export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
   // Serialized deliberately, not for safety alone: bd opens the database in-process,
   // so concurrent writes contend on its lock, and the cost is startup rather than
   // overlappable I/O. Parallelism buys nothing here and loses lock errors.
@@ -138,7 +141,7 @@ export function createBd({ beadsDir, bin = "bd" }) {
     assertArgs(args);
     // --readonly is free privilege separation: it genuinely refuses every mutation.
     const argv = ["--readonly", "--json", command, ...args];
-    return parse(await run(argv, { beadsDir, bin }), argv);
+    return parse(await run(argv, { beadsDir, bin, cwd }), argv);
   }
 
   async function write(command, args = []) {
@@ -147,7 +150,7 @@ export function createBd({ beadsDir, bin = "bd" }) {
     }
     assertArgs(args);
     const argv = ["--json", command, ...args];
-    return enqueue(async () => parse(await run(argv, { beadsDir, bin }), argv));
+    return enqueue(async () => parse(await run(argv, { beadsDir, bin, cwd }), argv));
   }
 
   return {
@@ -164,7 +167,7 @@ export function createBd({ beadsDir, bin = "bd" }) {
     // literally named "-" rather than using stdout.
     async exportRecords() {
       const argv = ["--readonly", "export"];
-      const result = await run(argv, { beadsDir, bin });
+      const result = await run(argv, { beadsDir, bin, cwd });
       if (result.code !== 0) {
         throw new BdError(failureMessage(result, argv), result);
       }
