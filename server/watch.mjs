@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 // Change detection, in order of what survived probing:
@@ -17,11 +17,30 @@ import path from "node:path";
 const DEBOUNCE_MS = 120;
 const POLL_MS = 4000;
 
-async function readToken(databasePath) {
-  const candidates = [
-    path.join(databasePath, ".dolt", "noms", "journal.idx"),
-    path.join(databasePath, ".dolt", "noms", "LOCK")
-  ];
+// The journal is not directly under the path `bd where` reports: the real layout is
+// <databasePath>/<database name>/.dolt/noms/. Assuming otherwise made the token a
+// constant, which silently disabled live refresh rather than failing loudly - exactly
+// the trap of hardcoding a store path instead of discovering it.
+async function findNomsDir(databasePath) {
+  const direct = path.join(databasePath, ".dolt", "noms");
+  if (await stat(direct).then(() => true, () => false)) {
+    return direct;
+  }
+  const entries = await readdir(databasePath, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries.filter((candidate) => candidate.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
+    const nested = path.join(databasePath, entry.name, ".dolt", "noms");
+    if (await stat(nested).then(() => true, () => false)) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+async function readToken(nomsDir) {
+  if (!nomsDir) {
+    return null;
+  }
+  const candidates = [path.join(nomsDir, "journal.idx"), path.join(nomsDir, "LOCK")];
   const parts = [];
   for (const candidate of candidates) {
     const info = await stat(candidate).catch(() => null);
@@ -37,13 +56,15 @@ export function watchStore({ databasePath, onChange }) {
   let token = null;
   let timer = null;
   let closed = false;
+  let nomsDir = null;
   const watchers = [];
 
   const check = async () => {
     if (closed) {
       return;
     }
-    const next = await readToken(databasePath).catch(() => null);
+    nomsDir ??= await findNomsDir(databasePath);
+    const next = await readToken(nomsDir).catch(() => null);
     if (next && next !== token) {
       token = next;
       onChange(token);
@@ -55,7 +76,16 @@ export function watchStore({ databasePath, onChange }) {
     timer = setTimeout(check, DEBOUNCE_MS);
   };
 
-  for (const dir of [databasePath, path.join(databasePath, ".dolt", "noms")]) {
+  // Watch both the store root and the journal directory. Resolved lazily below, so
+  // the initial check populates nomsDir before these are attached on the next tick.
+  void findNomsDir(databasePath).then((resolved) => {
+    nomsDir ??= resolved;
+    for (const dir of [databasePath, resolved].filter(Boolean)) {
+      attach(dir);
+    }
+  });
+
+  function attach(dir) {
     try {
       // The filename argument is ignored on purpose: every event means only "maybe",
       // and the token decides. That makes false positives from locks and backups free.

@@ -66,10 +66,28 @@ function run(argv, { beadsDir, bin = "bd" }) {
 // conflict, a supersede failure, and every --readonly refusal print plain text on
 // stderr even with --json. So the exit code is the only reliable signal, and JSON is
 // attempted only after it says success.
+// bd sometimes reports a failure as JSON on stderr ({"error":"...","schema_version":1})
+// and sometimes as bare prose. Unwrap the JSON so the UI shows the sentence rather than
+// a blob, but keep the raw text when it is not JSON.
+function failureMessage(result, argv) {
+  const detail = (result.stderr || result.stdout).trim();
+  if (!detail) {
+    return `bd ${argv[0]} exited ${result.code}`;
+  }
+  try {
+    const parsed = JSON.parse(detail);
+    if (parsed && typeof parsed.error === "string") {
+      return parsed.error;
+    }
+  } catch {
+    // Not JSON, which is the common case for --claim and --readonly refusals.
+  }
+  return detail;
+}
+
 function parse(result, argv) {
   if (result.code !== 0) {
-    const detail = (result.stderr || result.stdout).trim();
-    throw new BdError(detail || `bd ${argv[0]} exited ${result.code}`, result);
+    throw new BdError(failureMessage(result, argv), result);
   }
   const text = result.stdout.trim();
   if (!text) {
@@ -90,7 +108,10 @@ function assertArgs(args) {
     if (typeof arg !== "string") {
       throw new Error("bd arguments must be strings");
     }
-    if (/[\0\r\n]/.test(arg)) {
+    // NUL, CR and LF are rejected because they are how a second argument gets smuggled
+    // into an argv. Written as includes() rather than a regex so no lint rule has to be
+    // suppressed to express it.
+    if (arg.includes("\u0000") || arg.includes("\r") || arg.includes("\n")) {
       throw new Error("bd arguments must not contain NUL or newlines");
     }
   }
@@ -145,7 +166,7 @@ export function createBd({ beadsDir, bin = "bd" }) {
       const argv = ["--readonly", "export"];
       const result = await run(argv, { beadsDir, bin });
       if (result.code !== 0) {
-        throw new BdError((result.stderr || result.stdout).trim(), result);
+        throw new BdError(failureMessage(result, argv), result);
       }
       return result.stdout
         .split("\n")

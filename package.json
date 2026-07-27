@@ -17,12 +17,12 @@
     "dev": "node server/cli.mjs --dev",
     "build": "vite build",
     "start": "node server/cli.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs && node --test --experimental-strip-types test/*.test.ts",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=24.15.0"
+    "node": ">=22.13.0"
   },
   "devEngines": {
     "packageManager": {

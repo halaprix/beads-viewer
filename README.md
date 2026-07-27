@@ -34,9 +34,26 @@ Explicitly not in v1: kanban and list views, multi-project discovery, comment ed
 - Node >= 24.15.0
 - `bd` on `PATH`, and a `.beads` store discoverable from the working directory
 
+## Running it
+
+```bash
+npm install
+npm run build      # the server serves a prebuilt SPA from a literal manifest
+npm start          # from any repo with a .beads store
+```
+
+The printed URL carries a one-time token in its fragment. Open it as printed.
+
 ## Status
 
-Early. The data layer and its constraints are researched and settled (see [docs/decisions.md](docs/decisions.md)); the UI is being built.
+The MVP works: scoped graph, detail panel with field-level edits, create, drag to
+connect, live refresh. `Everything` view is available and warns when it is too crowded
+to answer anything.
+
+Known gaps: no test covers the React components (the graph model and the server are
+tested); collapse state is not persisted across reloads; layout runs on the main thread,
+which is fine at these sizes but would want a worker past a few hundred nodes; the
+`elk.js` chunk is 442kB gzipped and only loads when a graph is first laid out.
 
 ## Licence
 

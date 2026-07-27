@@ -22,6 +22,9 @@ const STATIC_FILES = new Map([
   ["/", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/index.html", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/app.js", { file: "app.js", type: "text/javascript; charset=utf-8" }],
+  // The lazily-imported layout engine. Named deterministically in vite.config.ts so
+  // this manifest can stay a literal.
+  ["/elk.js", { file: "elk.js", type: "text/javascript; charset=utf-8" }],
   ["/app.css", { file: "app.css", type: "text/css; charset=utf-8" }]
 ]);
 

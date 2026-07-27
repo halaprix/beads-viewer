@@ -1,0 +1,212 @@
+/* Tokens first, components through tokens, so both themes get the same care and the
+   viewer's toggle can override the media query in either direction. */
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbfd;
+  --panel: #ffffff;
+  --fg: #14161c;
+  --muted: #62697a;
+  --line: #d9dce4;
+  --edge: #7c8496;
+  --edge-soft: #b6bcc9;
+  --accent: #3355d1;
+  --open: #2f5bd0;
+  --in_progress: #a2620d;
+  --blocked: #bd3c17;
+  --closed: #157a44;
+  --deferred: #6b7280;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgb(20 22 28 / 8%), 0 8px 24px rgb(20 22 28 / 6%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e14;
+    --panel: #141824;
+    --fg: #e6e8ef;
+    --muted: #9aa2b4;
+    --line: #262c3b;
+    --edge: #5b6478;
+    --edge-soft: #3a4356;
+    --accent: #7f9cff;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.5 system-ui, sans-serif;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto 1fr;
+  height: 100dvh;
+}
+
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: baseline;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.views { display: flex; gap: 6px; }
+
+.views button {
+  font: inherit;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.views button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+}
+
+.views button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.meta { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.error {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 16px;
+  background: color-mix(in oklab, var(--blocked) 12%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, var(--blocked) 40%, transparent);
+  color: var(--blocked);
+}
+
+.canvas { position: relative; min-width: 0; }
+
+/* Nodes: the stripe carries status, so colour is never the only signal - the glyph
+   repeats it for anyone who cannot separate the hues. */
+.node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 260px;
+  height: 76px;
+  padding: 8px 12px 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.node::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--open);
+}
+
+.node.status-in_progress::before { background: var(--in_progress); }
+.node.status-blocked::before { background: var(--blocked); }
+.node.status-closed::before { background: var(--closed); }
+.node.status-deferred::before { background: var(--deferred); }
+
+.node.status-closed { opacity: 0.62; }
+.node.epic { border-style: dashed; border-width: 2px; }
+.node.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.node header { all: unset; display: flex; gap: 6px; align-items: baseline; }
+
+.node .id {
+  font: 600 12px/1.4 ui-monospace, monospace;
+  color: var(--fg);
+}
+
+.node .priority {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.node .title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node .toggle {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.details {
+  grid-row: 3;
+  width: min(360px, 40vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  overflow-y: auto;
+}
+
+.details header { all: unset; display: flex; gap: 8px; align-items: center; }
+.details header .id { font: 600 13px ui-monospace, monospace; margin-right: auto; }
+
+.details button {
+  font: inherit;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.details label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+
+.details input,
+.details select {
+  font: inherit;
+  color: var(--fg);
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.details .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.details h2 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.details ul { margin: 0; padding-left: 18px; font: 12px ui-monospace, monospace; }
+.details .muted { margin: 0; color: var(--muted); }
+.details form { display: grid; gap: 8px; }
+
+:where(button, input, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
