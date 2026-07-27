@@ -15,6 +15,7 @@ import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, type Positioned } from "./graph/l
 import {
   collapseGroups,
   collectEdges,
+  foldFinished,
   groupMembership,
   indexIssues,
   restrict,
@@ -37,6 +38,10 @@ export function App() {
   const [anchor, setAnchor] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Finished work is folded away by default: it is most of a mature store and none of it
+  // is actionable. Still one click from view, because "why is this closed" is a real
+  // question.
+  const [showDone, setShowDone] = useState(false);
   const [positions, setPositions] = useState<Map<string, Positioned>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +69,13 @@ export function App() {
   const { members, epics } = useMemo(() => groupMembership(issues), [issues]);
   const byId = useMemo(() => indexIssues(issues), [issues]);
 
-  const { visible, edges } = useMemo(() => {
+  const { visible, edges, folded } = useMemo(() => {
     const all = collectEdges(issues);
-    const scope = selectScope(issues, all, mode, anchor);
+    const selectedScope = selectScope(issues, all, mode, anchor);
+    const { kept, folded: foldedCount } = showDone
+      ? { kept: selectedScope, folded: 0 }
+      : foldFinished(selectedScope, byId);
+    const scope = kept;
     // Reduce before collapsing: a redundant edge merged into a group count would inflate
     // the number and imply constraints that do not exist.
     const reduced = transitiveReduction(restrict(all, scope));
@@ -79,9 +88,10 @@ export function App() {
     );
     return {
       visible: [...scope].filter((id) => !hiddenByCollapse.has(id)),
-      edges: collapsedEdges
+      edges: collapsedEdges,
+      folded: foldedCount
     };
-  }, [issues, mode, anchor, members, collapsed]);
+  }, [issues, mode, anchor, members, collapsed, showDone, byId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,9 +225,14 @@ export function App() {
             </button>
           ))}
         </div>
+        <label className="fold">
+          <input type="checkbox" checked={showDone} onChange={(event) => setShowDone(event.target.checked)} />
+          Show done
+        </label>
         <p className="meta">
           {loading ? "loading…" : `${visible.length} shown of ${issues.length} · ${edges.length} edges`}
-          {mode === "all" && issues.length > CROWDED ? " · crowded, prefer a scoped view" : ""}
+          {folded > 0 ? ` · ${folded} done folded` : ""}
+          {mode === "all" && visible.length > CROWDED ? " · crowded, prefer a scoped view" : ""}
         </p>
       </header>
 

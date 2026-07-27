@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   collapseGroups,
   collectEdges,
+  foldFinished,
   groupMembership,
   isReady,
   indexIssues,
@@ -165,4 +166,32 @@ test("group membership survives a parent cycle rather than hanging", () => {
   ];
   const { members } = groupMembership(issues);
   assert.equal(members.size, 0);
+});
+
+test("folding finished work is safe because a closed bead constrains nothing", () => {
+  const issues = [
+    issue("d-1"),
+    issue("d-2", { status: "closed", dependencies: [dep("d-2", "d-1")] }),
+    issue("d-3", { dependencies: [dep("d-3", "d-2")] }),
+    issue("d-4", { status: "deferred" })
+  ];
+  const byId = indexIssues(issues);
+  const { kept, folded } = foldFinished(["d-1", "d-2", "d-3", "d-4"], byId);
+
+  assert.deepEqual([...kept].sort(), ["d-1", "d-3"]);
+  assert.equal(folded, 2, "closed and deferred both count as finished");
+
+  // d-1 and d-3 were only ever connected through the closed d-2, so once it is folded
+  // they are genuinely unrelated - d-3 is not waiting on d-1. Dropping the dangling
+  // edges is therefore correct rather than a cosmetic omission.
+  const remaining = restrict(collectEdges(issues), kept);
+  assert.deepEqual(remaining, []);
+});
+
+test("folding leaves a chain between two open beads intact", () => {
+  const issues = [issue("k-1"), issue("k-2", { dependencies: [dep("k-2", "k-1")] })];
+  const byId = indexIssues(issues);
+  const { kept, folded } = foldFinished(["k-1", "k-2"], byId);
+  assert.equal(folded, 0);
+  assert.equal(restrict(collectEdges(issues), kept).length, 1);
 });
