@@ -220,7 +220,21 @@ export async function startServer({ port = 7373, host = "127.0.0.1", cwd = proce
     }
   });
 
-  await new Promise((resolve) => server.listen(port, host, resolve));
+  // listen() reports failure by emitting an error event, not by throwing, so a bare
+  // await here would hang forever on EADDRINUSE while the error surfaced as an uncaught
+  // exception - and the caller's retry path would never run. The watcher is closed on
+  // failure so a refused bind does not leak an fs.watch and an interval.
+  await new Promise((resolve, reject) => {
+    const onError = (error) => {
+      watcher.close();
+      reject(error);
+    };
+    server.once("error", onError);
+    server.listen(port, host, () => {
+      server.removeListener("error", onError);
+      resolve();
+    });
+  });
 
   return {
     store,

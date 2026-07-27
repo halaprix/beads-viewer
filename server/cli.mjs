@@ -47,7 +47,7 @@ const server = await listen(Number(value("port", DEFAULT_PORT)));
 
 // Report what was actually bound, derived from the socket - Prisma Studio printed
 // "localhost" while binding 0.0.0.0, which is how that bug survived so long.
-const bound = server.address();
+const bound = server.address;
 if (process.stdout.isTTY) {
   process.stdout.write(`\n  beads-viewer  ${server.store.prefix}\n`);
   process.stdout.write(`  store         ${server.store.beadsDir}\n`);
