@@ -1,10 +1,26 @@
 {
-  "name": "beads-viewer",
+  "name": "@halaprix/beads-viewer",
   "version": "0.0.1",
-  "private": true,
-  "type": "module",
   "description": "Interactive dependency graph editor for Beads issues.",
+  "keywords": [
+    "beads",
+    "bd",
+    "issue-tracker",
+    "dependency-graph",
+    "dag",
+    "local-first",
+    "cli"
+  ],
+  "homepage": "https://github.com/halaprix/beads-viewer#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/halaprix/beads-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/halaprix/beads-viewer/issues"
+  },
   "license": "MIT",
+  "type": "module",
   "bin": {
     "beads-viewer": "./server/cli.mjs"
   },
@@ -20,7 +36,8 @@
     "test": "node --test test/*.test.mjs && node --test --experimental-strip-types test/*.test.ts",
     "test:cli": "node --test test/cli.test.mjs",
     "lint": "oxlint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -29,6 +46,9 @@
     "packageManager": {
       "name": "npm"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@types/react": "^19.2.2",

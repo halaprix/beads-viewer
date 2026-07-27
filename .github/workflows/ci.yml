@@ -1,0 +1,27 @@
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx oxlint src server
+      - run: npm run build
+      # Only the pure-logic tests run here. The security and CLI suites drive a real
+      # `bd` binary against a real store, which CI has no way to provide - so they are
+      # a local gate, not a CI one. Pretending otherwise would be worse than saying it.
+      - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts

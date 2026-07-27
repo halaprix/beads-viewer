@@ -1,0 +1,30 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  # Required for npm trusted publishing. With it, provenance is attached automatically
+  # and no NPM_TOKEN secret exists to leak - classic tokens were retired in late 2025.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          # Caching is deliberately off on the publish path: a malicious postinstall in a
+          # restored cache would run next to the publishing credential.
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts
+      # Trusted publishing needs npm >= 11.5.1, newer than what ships with Node 24.
+      - run: npm install -g npm@latest
+      # `prepack` builds dist, and publishConfig.access makes the scoped package public.
+      - run: npm publish

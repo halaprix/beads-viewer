@@ -43,7 +43,18 @@ function canOpenBrowser() {
   return true;
 }
 
-const server = await listen(Number(value("port", DEFAULT_PORT)));
+// A missing store is the most likely first-run outcome, so it gets a sentence rather
+// than a stack trace. The stack is still available behind --debug for a real crash.
+let server;
+try {
+  server = await listen(Number(value("port", DEFAULT_PORT)));
+} catch (error) {
+  if (flag("debug")) {
+    throw error;
+  }
+  process.stderr.write(`\nbeads-viewer: ${error instanceof Error ? error.message : String(error)}\n\n`);
+  process.exit(1);
+}
 
 // Report what was actually bound, derived from the socket - Prisma Studio printed
 // "localhost" while binding 0.0.0.0, which is how that bug survived so long.

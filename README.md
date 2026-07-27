@@ -3,10 +3,10 @@
 An interactive graph editor for [Beads](https://github.com/gastownhall/beads) issues. Run one command in a repository that has a `.beads` store and a browser opens on a dependency graph you can actually edit — create issues, drag to connect dependencies, change status, all written straight back through the `bd` CLI.
 
 ```bash
-npx beads-viewer          # in a repo with a .beads store
+npx @halaprix/beads-viewer   # in a repo with a .beads store
 ```
 
-![The Everything view: 29 beads laid out left to right, column position showing dependency depth](docs/img/everything-view.png)
+![The Everything view: 29 beads laid out left to right, column position showing dependency depth](https://raw.githubusercontent.com/halaprix/beads-viewer/main/docs/img/everything-view.png)
 
 *The `Everything` view on this project's own store. Column position is dependency depth, so
 the leftmost work is startable; solid edges are `blocks`, dashed are `parent-child`. The
@@ -34,6 +34,15 @@ In v1:
 6. **Live refresh** — a human or an agent running `bd` in a terminal shows up in the UI within about a second.
 
 Explicitly not in v1: kanban and list views, multi-project discovery, comment editing, a search query language, anything multi-user, mobile layouts.
+
+## Publishing
+
+The package is `@halaprix/beads-viewer`, and `publishConfig.access` is `public` so the
+scoped name cannot be published privately by accident. `prepack` runs the build, so the
+tarball carries `server/` plus a prebuilt `dist/` and has **zero runtime dependencies**.
+
+After the first manual publish, tag a release and `release.yml` publishes it through npm
+trusted publishing — no token secret, and provenance is attached automatically.
 
 ## Requirements
 
