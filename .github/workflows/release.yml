@@ -5,7 +5,8 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  # write, because this job creates the GitHub Release for the tag.
+  contents: write
   # Kept even though authentication is by token: this is what lets npm attach signed
   # provenance to the published tarball, so consumers can verify it was built from this
   # repository and commit rather than uploaded from someone's laptop.
@@ -43,7 +44,33 @@ jobs:
             exit 1
           fi
 
-      # prepack builds dist; publishConfig.access keeps the scoped package public.
-      - run: npm publish --provenance
+      # A version already on the registry is not an error worth failing a release over -
+      # npm versions are immutable, so republishing is impossible by design. This lets a
+      # tag be pushed after a manual publish (which is how 0.1.0 happened) and still get
+      # its GitHub Release.
+      - name: Publish unless the version is already on the registry
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already published; skipping publish"
+          else
+            # prepack builds dist; publishConfig.access keeps the scoped package public.
+            # --provenance attaches a signed attestation tying the tarball to this commit.
+            npm publish --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Create the GitHub Release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+              --verify-tag
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
