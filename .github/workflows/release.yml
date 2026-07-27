@@ -25,8 +25,9 @@ jobs:
           # Caching is deliberately off on the publish path: a postinstall script from a
           # restored cache would run in the same job as the publishing credential.
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npx oxlint src server
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: node --test test/browser.test.mjs
       - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts
 
       # Pinned to 11, which supports every Node the runner might carry. npm 12 requires

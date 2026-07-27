@@ -13,6 +13,7 @@ import { IssueNode } from "./IssueNode.tsx";
 import { Details } from "./Details.tsx";
 import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, type Positioned } from "./graph/layout.ts";
 import {
+  collapsedGroupFor,
   collapseGroups,
   collectEdges,
   foldFinished,
@@ -82,8 +83,8 @@ export function App() {
     const collapsedEdges = collapseGroups(reduced, members, collapsed);
     const hiddenByCollapse = new Set(
       [...scope].filter((id) => {
-        const owner = members.get(id);
-        return owner && collapsed.has(owner) && owner !== id;
+        const owner = collapsedGroupFor(id, members, collapsed);
+        return owner && owner !== id;
       })
     );
     return {
@@ -152,7 +153,11 @@ export function App() {
         target: edge.to,
         // An aggregate edge says how many real edges it stands for. Silent merging
         // would make the picture claim a single dependency where several exist.
-        label: edge.count > 1 ? String(edge.count) : undefined,
+        label: edge.aggregated ? (edge.count > 1 ? `${edge.count} dependencies` : "grouped") : undefined,
+        // Its visible endpoints are groups, not the records that own the underlying
+        // dependency. Deleting it as though it were a real edge would target the wrong
+        // bead, so expand the group before removing that dependency.
+        deletable: !edge.aggregated,
         animated: false,
         className: edge.kind,
         style:

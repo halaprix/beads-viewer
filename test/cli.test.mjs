@@ -3,16 +3,31 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  createBeadsWorkspace,
+  fixtureEnv,
+  hasBd,
+  removeBeadsWorkspace
+} from "./beads-fixture.mjs";
 
 // This file exists because the CLI shipped a crash that every other test missed:
 // startServer returns `address` as a value and cli.mjs called it as a function. Nothing
 // launched the binary, so nothing noticed. Import-level tests cannot cover a process.
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "server", "cli.mjs");
+let workspace;
 
-function launch(args = []) {
+test.before(async () => {
+  if (hasBd) workspace = await createBeadsWorkspace();
+});
+
+test.after(async () => {
+  await removeBeadsWorkspace(workspace);
+});
+
+function launch(args = [], { cwd = workspace } = {}) {
   const child = spawn(process.execPath, [CLI, ...args], {
-    cwd: process.cwd(),
-    env: { ...process.env },
+    cwd,
+    env: fixtureEnv({ BROWSER: "none" }),
     stdio: ["ignore", "pipe", "pipe"]
   });
   let stdout = "";
@@ -34,7 +49,7 @@ function launch(args = []) {
             resolve({ url: match[0], port: Number(match[1]), token: match[2] });
           }
         });
-        child.on("exit", (code) => {
+        child.on("close", (code) => {
           clearTimeout(timer);
           reject(new Error(`exited ${code} before printing a URL: ${stderr}`));
         });
@@ -42,7 +57,30 @@ function launch(args = []) {
   };
 }
 
-test("the CLI starts, prints a tokenised URL, and serves the store behind it", { timeout: 30_000 }, async () => {
+test("help and version work without a Beads store", async () => {
+  for (const [args, pattern] of [
+    [["--help"], /Usage:\s+beads-viewer/],
+    [["--version"], /^0\.2\.0\s*$/]
+  ]) {
+    const instance = launch(args, { cwd: process.cwd() });
+    const output = await new Promise((resolve) => {
+      instance.child.on("close", (code) => resolve({ code, ...instance.output() }));
+    });
+    assert.equal(output.code, 0);
+    assert.match(output.stdout, pattern);
+  }
+});
+
+test("invalid ports fail with a useful error before store discovery", async () => {
+  const instance = launch(["--port", "nope"], { cwd: process.cwd() });
+  const output = await new Promise((resolve) => {
+    instance.child.on("close", (code) => resolve({ code, ...instance.output() }));
+  });
+  assert.equal(output.code, 1);
+  assert.match(output.stderr, /--port must be an integer from 1 to 65535/);
+});
+
+test("the CLI starts, prints a tokenised URL, and serves the store behind it", { timeout: 30_000, skip: !hasBd }, async () => {
   const instance = launch(["--port", "7396", "--no-open"]);
   try {
     const { port, token } = await instance.ready();
@@ -68,7 +106,7 @@ test("the CLI starts, prints a tokenised URL, and serves the store behind it", {
   }
 });
 
-test("a second instance steps to the next port instead of dying", { timeout: 30_000 }, async () => {
+test("a second instance steps to the next port instead of dying", { timeout: 30_000, skip: !hasBd }, async () => {
   const first = launch(["--port", "7394", "--no-open"]);
   try {
     await first.ready();
@@ -85,7 +123,7 @@ test("a second instance steps to the next port instead of dying", { timeout: 30_
   }
 });
 
-test("SIGINT shuts down rather than hanging on an open stream", { timeout: 30_000 }, async () => {
+test("SIGINT shuts down rather than hanging on an open stream", { timeout: 30_000, skip: !hasBd }, async () => {
   const instance = launch(["--port", "7393", "--no-open"]);
   const { port, token } = await instance.ready();
 

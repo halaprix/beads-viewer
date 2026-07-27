@@ -20,55 +20,63 @@ default view is narrower than this on purpose.*
 
 Not a Beads replacement, and not a second source of truth. The `bd` CLI is the only writer; this is a lens on the store that happens to be able to write through itself. Close the tab and nothing is lost or pending.
 
-## MVP scope
+## Current scope
 
 The design principle, taken from what actually works in comparable tools: **a graph that answers a question, never a graph of everything.** Rendering the whole store is how Backstage's catalog graph and Obsidian's global graph became things people call pretty and don't use.
 
-In v1:
+In 0.2.0:
 
 1. **Scoped graph by default** — one epic, or a bounded focus around a chosen issue. The whole store is an explicit opt-in, with a warning past the readability cliff.
 2. **Layered layout, left to right**, where the column *is* topological depth: column 0 is startable work. Deterministic — the same store always draws the same picture.
 3. **Detail panel** with field-level editing. Only the field you touched is written.
-4. **Create an issue**, including as a child of an epic.
-5. **Drag to connect a dependency**, select an edge to remove it. `bd` rejects cycles for us, and the rejection is surfaced verbatim.
+4. **Create a child issue** from the detail panel.
+5. **Drag to connect a dependency**, select an edge to remove it. Grouped edges are read-only until expanded. `bd` rejects cycles for us, and the rejection is surfaced verbatim.
 6. **Live refresh** — a human or an agent running `bd` in a terminal shows up in the UI within about a second.
-
-Explicitly not in v1: kanban and list views, multi-project discovery, comment editing, a search query language, anything multi-user, mobile layouts.
-
-## Publishing
-
-The package is `@halaprix/beads-viewer`, and `publishConfig.access` is `public` so the
-scoped name cannot be published privately by accident. `prepack` runs the build, so the
-tarball carries `server/` plus a prebuilt `dist/` and has **zero runtime dependencies**.
-
-After the first manual publish, tag a release and `release.yml` publishes it through npm
-trusted publishing — no token secret, and provenance is attached automatically.
 
 ## Requirements
 
 - Node >= 22.13.0
 - `bd` on `PATH`, and a `.beads` store discoverable from the working directory
 
-## Running it
+## CLI
+
+```text
+beads-viewer [--port <number>] [--strict-port] [--no-open] [--debug]
+beads-viewer --help
+beads-viewer --version
+```
+
+The server binds to `127.0.0.1` only. Its printed URL carries a one-time token in the
+fragment; if a browser cannot be opened automatically, open that URL exactly as printed.
+
+## Developing
 
 ```bash
 npm install
-npm run build      # the server serves a prebuilt SPA from a literal manifest
+npm run check      # lint, typecheck, tests, and production build
 npm start          # from any repo with a .beads store
 ```
 
-The printed URL carries a one-time token in its fragment. Open it as printed.
+The CLI and security integration tests use temporary isolated stores and skip cleanly
+when `bd` is not installed.
 
 ## Status
 
-The MVP works: scoped graph, detail panel with field-level edits, create, drag to
-connect, live refresh. `Everything` view is available and warns when it is too crowded
-to answer anything.
+Version 0.2.0 provides scoped graph views, a detail panel with field-level edits,
+child creation, dependency editing, and live refresh. `Everything` remains an explicit
+view and warns when it is too crowded to answer anything.
 
 Known gaps: no test covers the React components (the graph model and the server are
 tested); collapse state is not persisted across reloads; layout runs on the main thread,
 which is fine at these sizes but would want a worker past a few hundred nodes; the
 `elk.js` chunk is 442kB gzipped and only loads when a graph is first laid out.
+
+## Releasing
+
+The package is public and has zero runtime dependencies: `prepack` builds the SPA, and
+the tarball contains the server plus prebuilt assets. The release workflow checks that
+the `vX.Y.Z` tag matches `package.json`, publishes with npm provenance, and creates the
+matching GitHub Release. See [CHANGELOG.md](CHANGELOG.md) for shipped changes.
 
 ## Licence
 

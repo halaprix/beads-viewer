@@ -1,7 +1,7 @@
 {
   "name": "@halaprix/beads-viewer",
-  "version": "0.1.0",
-  "description": "Interactive dependency graph editor for Beads issues.",
+  "version": "0.2.0",
+  "description": "Local-first interactive dependency graph editor for Beads issues.",
   "keywords": [
     "beads",
     "bd",
@@ -27,16 +27,18 @@
   "files": [
     "server",
     "dist",
+    "CHANGELOG.md",
     "NOTICE"
   ],
   "scripts": {
-    "dev": "node server/cli.mjs --dev",
+    "dev": "npm run build && node server/cli.mjs",
     "build": "vite build",
     "start": "node server/cli.mjs",
     "test": "node --test test/*.test.mjs && node --test --experimental-strip-types test/*.test.ts",
     "test:cli": "node --test test/cli.test.mjs",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "prepack": "npm run build"
   },
   "engines": {

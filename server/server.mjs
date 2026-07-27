@@ -71,6 +71,14 @@ function requireId(body, field = "id") {
   return value;
 }
 
+function requirePriority(body, field = "priority") {
+  const value = body?.[field];
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 4) {
+    throw new Error(`${field} must be an integer from 0 to 4`);
+  }
+  return String(value);
+}
+
 export async function startServer({ port = 7373, host = "127.0.0.1", cwd = process.cwd(), distDir } = {}) {
   const store = await resolveStore({ cwd });
   const bd = createBd({ beadsDir: store.beadsDir, cwd });
@@ -96,7 +104,7 @@ export async function startServer({ port = 7373, host = "127.0.0.1", cwd = proce
       const args = [requireString(body, "title", { max: 500 })];
       if (body.description) args.push("-d", requireString(body, "description", { max: 20000 }));
       if (body.type) args.push("-t", requireString(body, "type", { max: 40 }));
-      if (body.priority !== undefined) args.push("-p", String(Number(body.priority)));
+      if (body.priority !== undefined) args.push("-p", requirePriority(body));
       if (body.parent) args.push("--parent", requireId(body, "parent"));
       return bd.write("create", args);
     },
@@ -118,7 +126,10 @@ export async function startServer({ port = 7373, host = "127.0.0.1", cwd = proce
       if (!Object.hasOwn(flags, field)) {
         throw new Error(`field ${field} is not editable`);
       }
-      const value = field === "priority" ? String(Number(body.value)) : requireString(body, "value", { max: 20000 });
+      const value =
+        field === "priority"
+          ? requirePriority(body, "value")
+          : requireString(body, "value", { max: 20000 });
       return bd.write("update", [id, flags[field], value]);
     },
 
@@ -216,7 +227,10 @@ export async function startServer({ port = 7373, host = "127.0.0.1", cwd = proce
       // A BdError carries bd's own words, which are often the most useful thing we can
       // show - "adding dependency would create a cycle" needs no translation.
       const status = error instanceof BdError ? 409 : 400;
-      return sendJson(res, status, { ok: false, error: error.message });
+      return sendJson(res, status, {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

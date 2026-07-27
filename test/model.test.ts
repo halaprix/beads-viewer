@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  collapsedGroupFor,
   collapseGroups,
   collectEdges,
   foldFinished,
@@ -80,9 +81,35 @@ test("collapsing an epic rewrites crossing edges and counts what it merged", () 
   assert.equal(ordering[0]!.from, "e-1");
   assert.equal(ordering[0]!.to, "out");
   assert.equal(ordering[0]!.count, 2);
+  assert.equal(ordering[0]!.aggregated, true);
 
   // Containment edges wholly inside the collapsed group have nothing left to say.
   assert.equal(edges.some((edge) => edge.kind === "containment"), false);
+});
+
+test("collapsing an outer epic includes descendants of a nested epic", () => {
+  const issues = [
+    issue("outer", { issue_type: "epic" }),
+    issue("inner", { issue_type: "epic", parent: "outer" }),
+    issue("child", { parent: "inner" }),
+    issue("outside", { dependencies: [dep("outside", "child")] })
+  ];
+  const { members } = groupMembership(issues);
+  const collapsed = new Set(["outer"]);
+
+  assert.equal(collapsedGroupFor("inner", members, collapsed), "outer");
+  assert.equal(collapsedGroupFor("child", members, collapsed), "outer");
+
+  const edge = collapseGroups(collectEdges(issues), members, collapsed).find(
+    (candidate) => candidate.kind === "ordering"
+  );
+  assert.deepEqual(edge, {
+    from: "outer",
+    to: "outside",
+    kind: "ordering",
+    count: 1,
+    aggregated: true
+  });
 });
 
 test("readiness ignores finished blockers and containment", () => {
