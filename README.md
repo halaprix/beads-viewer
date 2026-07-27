@@ -31,7 +31,7 @@ Explicitly not in v1: kanban and list views, multi-project discovery, comment ed
 
 ## Requirements
 
-- Node >= 24.15.0
+- Node >= 22.13.0
 - `bd` on `PATH`, and a `.beads` store discoverable from the working directory
 
 ## Running it
