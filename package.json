@@ -22,7 +22,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "beads-viewer": "./server/cli.mjs"
+    "beads-viewer": "server/cli.mjs"
   },
   "files": [
     "server",
