@@ -6,8 +6,9 @@ on:
 
 permissions:
   contents: read
-  # Required for npm trusted publishing. With it, provenance is attached automatically
-  # and no NPM_TOKEN secret exists to leak - classic tokens were retired in late 2025.
+  # Kept even though authentication is by token: this is what lets npm attach signed
+  # provenance to the published tarball, so consumers can verify it was built from this
+  # repository and commit rather than uploaded from someone's laptop.
   id-token: write
 
 jobs:
@@ -18,13 +19,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          # Writes an .npmrc pointing at the registry and reading NODE_AUTH_TOKEN.
           registry-url: https://registry.npmjs.org
-          # Caching is deliberately off on the publish path: a malicious postinstall in a
-          # restored cache would run next to the publishing credential.
+          # Caching is deliberately off on the publish path: a postinstall script from a
+          # restored cache would run in the same job as the publishing credential.
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npx oxlint src server
       - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts
-      # Trusted publishing needs npm >= 11.5.1, newer than what ships with Node 24.
-      - run: npm install -g npm@latest
-      # `prepack` builds dist, and publishConfig.access makes the scoped package public.
-      - run: npm publish
+
+      # Pinned to 11, which supports every Node the runner might carry. npm 12 requires
+      # ^22.22 || ^24.15 and would fail the job on an older runner image.
+      - run: npm install -g npm@11
+
+      # Refuse to publish a tag that disagrees with package.json, rather than shipping a
+      # version nobody asked for. Tags are cheap; a wrong published version is forever.
+      - name: Check the tag matches package.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $PKG" >&2
+            exit 1
+          fi
+
+      # prepack builds dist; publishConfig.access keeps the scoped package public.
+      - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
