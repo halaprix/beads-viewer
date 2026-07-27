@@ -42,15 +42,18 @@ body {
   font: 14px/1.5 system-ui, sans-serif;
 }
 
+/* Every area is pinned explicitly. Auto-placement put the canvas in the `auto` row,
+   where it collapsed to zero height and React Flow rendered into nothing - a graph that
+   is present in the DOM and invisible on screen. */
 .shell {
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100dvh;
 }
 
 header {
-  grid-column: 1 / -1;
+  grid-area: 1 / 1 / 2 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 12px 20px;
@@ -83,7 +86,7 @@ header {
 .meta { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .error {
-  grid-column: 1 / -1;
+  grid-area: 2 / 1 / 3 / -1;
   margin: 0;
   padding: 10px 16px;
   background: color-mix(in oklab, var(--blocked) 12%, transparent);
@@ -91,7 +94,19 @@ header {
   color: var(--blocked);
 }
 
-.canvas { position: relative; min-width: 0; }
+/* min-height: 0 as well as the area, or a grid item refuses to shrink below its content
+   and the row overflows instead of scrolling. React Flow needs a sized parent. */
+.canvas {
+  grid-area: 3 / 1 / 4 / 2;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.canvas .react-flow {
+  width: 100%;
+  height: 100%;
+}
 
 /* Nodes: the stripe carries status, so colour is never the only signal - the glyph
    repeats it for anyone who cannot separate the hues. */
@@ -160,7 +175,7 @@ header {
 }
 
 .details {
-  grid-row: 3;
+  grid-area: 3 / 2 / 4 / 3;
   width: min(360px, 40vw);
   display: flex;
   flex-direction: column;

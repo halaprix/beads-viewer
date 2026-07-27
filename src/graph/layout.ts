@@ -77,11 +77,51 @@ export async function layoutGraph(
       .map((edge, index) => ({ id: `e${index}`, sources: [edge.from], targets: [edge.to] }))
   };
 
-  const elk = await getElk();
-  const result = await elk.layout(graph);
+  try {
+    const elk = await getElk();
+    const result = await elk.layout(graph);
+    const positions = new Map<string, Positioned>();
+    for (const child of result.children ?? []) {
+      positions.set(child.id!, { id: child.id!, x: child.x ?? 0, y: child.y ?? 0 });
+    }
+    return positions;
+  } catch {
+    // If the layout chunk fails to load, degrade to depth columns rather than stacking
+    // every node at the origin. A rough graph is readable; a blank canvas is not, and it
+    // looks identical to a data problem.
+    return fallbackLayout(sorted, edges);
+  }
+}
+
+/** Longest-path columns computed directly, as a floor under any layout failure. */
+export function fallbackLayout(ids: string[], edges: Edge[]): Map<string, Positioned> {
+  const depth = new Map<string, number>(ids.map((id) => [id, 0]));
+  const ordering = edges.filter((edge) => edge.kind === "ordering");
+  // Relax repeatedly rather than recursing, so a cycle cannot blow the stack.
+  for (let pass = 0; pass < ids.length; pass += 1) {
+    let moved = false;
+    for (const edge of ordering) {
+      const from = depth.get(edge.from);
+      const to = depth.get(edge.to);
+      if (from === undefined || to === undefined) continue;
+      if (to < from + 1) {
+        depth.set(edge.to, from + 1);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  const rows = new Map<number, number>();
   const positions = new Map<string, Positioned>();
-  for (const child of result.children ?? []) {
-    positions.set(child.id!, { id: child.id!, x: child.x ?? 0, y: child.y ?? 0 });
+  for (const id of ids) {
+    const column = depth.get(id) ?? 0;
+    const row = rows.get(column) ?? 0;
+    rows.set(column, row + 1);
+    positions.set(id, {
+      id,
+      x: column * (NODE_WIDTH + 96),
+      y: row * (NODE_HEIGHT + 24)
+    });
   }
   return positions;
 }
