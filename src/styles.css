@@ -114,7 +114,7 @@ header {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   width: 260px;
   height: 76px;
   padding: 8px 12px 8px 16px;
@@ -157,22 +157,29 @@ header {
 
 .node .title {
   margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
+/* Sized so it never competes with the id for the header row. */
 .node .toggle {
-  align-self: flex-start;
+  flex: none;
   font: inherit;
   font-size: 11px;
-  padding: 1px 7px;
+  line-height: 1;
+  min-width: 22px;
+  padding: 2px 6px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
 }
+
+.node .toggle:hover { color: var(--fg); border-color: var(--muted); }
 
 .details {
   grid-area: 3 / 2 / 4 / 3;

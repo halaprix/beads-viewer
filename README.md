@@ -6,6 +6,12 @@ An interactive graph editor for [Beads](https://github.com/gastownhall/beads) is
 npx beads-viewer          # in a repo with a .beads store
 ```
 
+![The Everything view: 29 beads laid out left to right, column position showing dependency depth](docs/img/everything-view.png)
+
+*The `Everything` view on this project's own store. Column position is dependency depth, so
+the leftmost work is startable; solid edges are `blocks`, dashed are `parent-child`. The
+default view is narrower than this on purpose.*
+
 ## Why this exists
 
 `bd graph --html` loads D3 from a CDN, so it needs the network and cannot be archived. `bd graph` in a terminal is static. Both are read-only. Meanwhile the graph is the one place where a dependency mistake is obvious at a glance — and the one place you cannot fix it.

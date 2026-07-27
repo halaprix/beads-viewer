@@ -20,19 +20,26 @@ export function IssueNode({ data }: { data: Data }) {
       {/* Left is "what blocks me", right is "what I block", matching the flow direction
           so a drag reads the same way the graph does. */}
       <Handle type="target" position={Position.Left} />
+      {/* The toggle lives in the header rather than below the title: as a third row it
+          overflowed the fixed node height and clipped the title it sat on top of. */}
       <header>
         <span className="glyph" aria-hidden="true">
           {STATUS_GLYPH[issue.status] ?? "○"}
         </span>
         <span className="id">{issue.id}</span>
         {issue.priority !== undefined ? <span className="priority">P{issue.priority}</span> : null}
+        {isEpic && memberCount > 0 ? (
+          <button
+            type="button"
+            className="toggle"
+            onClick={onToggle}
+            title={collapsed ? `Expand ${memberCount} children` : "Collapse children"}
+          >
+            {collapsed ? `+${memberCount}` : "−"}
+          </button>
+        ) : null}
       </header>
       <p className="title">{issue.title}</p>
-      {isEpic && memberCount > 0 ? (
-        <button type="button" className="toggle" onClick={onToggle}>
-          {collapsed ? `expand + ${memberCount}` : "collapse"}
-        </button>
-      ) : null}
       <Handle type="source" position={Position.Right} />
     </article>
   );
