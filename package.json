@@ -1,0 +1,44 @@
+{
+  "name": "beads-viewer",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Interactive dependency graph editor for Beads issues.",
+  "license": "MIT",
+  "bin": {
+    "beads-viewer": "./server/cli.mjs"
+  },
+  "files": [
+    "server",
+    "dist",
+    "NOTICE"
+  ],
+  "scripts": {
+    "dev": "node server/cli.mjs --dev",
+    "build": "vite build",
+    "start": "node server/cli.mjs",
+    "test": "node --test test/*.test.mjs",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm"
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@xyflow/react": "^12.11.2",
+    "elkjs": "^0.12.0",
+    "oxlint": "^1.40.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.0.0"
+  }
+}

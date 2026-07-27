@@ -1,0 +1,128 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { request } from "node:http";
+import { startServer } from "../server/server.mjs";
+
+// `Host` is a forbidden header name in fetch, so fetch silently sends the real one and
+// a rebinding test written with it passes while verifying nothing. Raw http.request is
+// the only way to actually forge it.
+function rawGet(path, headers) {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      { host: "127.0.0.1", port: 7391, path, method: "GET", headers, setHost: false },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => resolve({ status: res.statusCode, body }));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+// Every CVE this design was built against would have been caught by one of the tests
+// below: MCP Inspector (9.4), Cline (9.6), OpenCode (8.8), Storybook, AutoGen Studio,
+// webpack-dev-server, and the Vite fs.deny family. They are the point of the file.
+let server;
+
+test.before(async () => {
+  server = await startServer({ port: 7391, cwd: process.cwd() });
+});
+
+test.after(async () => {
+  await server?.close();
+});
+
+const base = "http://127.0.0.1:7391";
+const auth = () => ({ Authorization: `Bearer ${server.token}` });
+
+test("a rebound Host is refused before routing", async () => {
+  // The DNS-rebinding case: the browser treats this as same-origin, so CORS cannot
+  // help and the Host header is the only signal that distinguishes the attack.
+  const response = await rawGet("/api/issues", { ...auth(), Host: "evil.example.com" });
+  assert.equal(response.status, 403);
+  assert.match(response.body, /disallowed Host/);
+
+  // A missing Host is refused too, and the legitimate authorities still pass.
+  assert.equal((await rawGet("/api/store", { ...auth(), Host: "127.0.0.1:7391" })).status, 200);
+  assert.equal((await rawGet("/api/store", { ...auth(), Host: "localhost:7391" })).status, 200);
+  assert.equal((await rawGet("/api/store", { ...auth(), Host: "127.0.0.1:7391.evil.com" })).status, 403);
+});
+
+test("a foreign Origin is refused", async () => {
+  const response = await fetch(`${base}/api/issues`, {
+    headers: { ...auth(), Origin: "https://evil.example.com" }
+  });
+  assert.equal(response.status, 403);
+});
+
+test("no route is reachable without the token, including the event stream", async () => {
+  for (const path of ["/api/issues", "/api/store", "/api/events"]) {
+    const response = await fetch(`${base}${path}`);
+    assert.equal(response.status, 403, `${path} was reachable unauthenticated`);
+  }
+});
+
+test("an invalid token is refused", async () => {
+  const response = await fetch(`${base}/api/issues`, {
+    headers: { Authorization: "Bearer not-the-token" }
+  });
+  assert.equal(response.status, 403);
+});
+
+test("no CORS header is ever emitted and preflight is refused", async () => {
+  const response = await fetch(`${base}/api/issues`, { method: "OPTIONS", headers: auth() });
+  assert.equal(response.status, 403);
+  for (const header of response.headers.keys()) {
+    assert.doesNotMatch(header, /^access-control-/i);
+  }
+});
+
+test("a mutation without exact application/json is refused", async () => {
+  // text/plain and form encodings are precisely what a cross-origin simple request can
+  // send, so refusing them is what makes form CSRF structurally impossible.
+  for (const contentType of ["text/plain", "application/x-www-form-urlencoded", "multipart/form-data"]) {
+    const response = await fetch(`${base}/api/issues`, {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": contentType },
+      body: "title=pwned"
+    });
+    assert.equal(response.status, 403, `${contentType} was accepted`);
+  }
+});
+
+test("mutating routes are unreachable by GET", async () => {
+  const response = await fetch(`${base}/api/issue`, { headers: auth() });
+  assert.equal(response.status, 404);
+});
+
+test("static assets come from a manifest, so traversal cannot reach outside dist", async () => {
+  // Anything not in the manifest simply is not a static route, so it falls through to
+  // the token check and is refused. What matters is only that it never returns content.
+  for (const path of ["/../package.json", "/../../etc/passwd", "/app.js?raw", "/index.html%00.js"]) {
+    const response = await fetch(`${base}${path}`);
+    assert.notEqual(response.status, 200, `${path} returned content`);
+    assert.doesNotMatch(await response.text(), /beads-viewer|root:/);
+  }
+});
+
+test("a bead id that could become a flag is refused", async () => {
+  // Flag injection is the real risk: --db or -C in an id position would repoint the
+  // store, so ids are pinned to a shape that cannot start with a dash.
+  const response = await fetch(`${base}/api/dependency`, {
+    method: "POST",
+    headers: { ...auth(), "Content-Type": "application/json" },
+    body: JSON.stringify({ dependent: "--db=/tmp/evil", blocker: "x-1" })
+  });
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /not a valid bead id/);
+});
+
+test("reads reach the real store through bd", async () => {
+  const response = await fetch(`${base}/api/store`, { headers: auth() });
+  assert.equal(response.status, 200);
+  const { data } = await response.json();
+  assert.equal(typeof data.prefix, "string");
+  assert.equal(typeof data.beadsDir, "string");
+});

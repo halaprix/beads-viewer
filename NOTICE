@@ -1,0 +1,9 @@
+beads-viewer
+Copyright (c) 2026
+
+Licensed under the MIT License; see LICENSE.
+
+This product bundles elkjs (https://github.com/kieler/elkjs), which is licensed
+under the Eclipse Public License 2.0 (EPL-2.0) or, at the recipient's option,
+GPL-3.0-or-later. elkjs is bundled unmodified. Its source and licence terms are
+available from the project above.
