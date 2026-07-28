@@ -159,7 +159,18 @@ export function createBd({ beadsDir, bin = "bd", cwd = process.cwd(), env = proc
 
     // The widest single read: carries parent, labels and dependencies together, and
     // costs 437ms even at 2000 issues, so one call hydrates the whole cache.
-    listAll: () => read("list", ["--all", "--limit", "0"]),
+    //
+    // Always an array. `parse` collapses an array-of-one because that is what `bd show`
+    // returns, but a store holding exactly one issue makes `bd list` look identical - so
+    // a brand-new repository with a single bead handed the UI an object where it expected
+    // a list, and the graph rendered nothing.
+    async listAll() {
+      const rows = await read("list", ["--all", "--limit", "0"]);
+      if (Array.isArray(rows)) {
+        return rows;
+      }
+      return rows && rows.id ? [rows] : [];
+    },
 
     // Comment bodies exist only in the export, and the export has no `parent` field,
     // so neither call alone is sufficient. This one is a secondary hydrate, never the

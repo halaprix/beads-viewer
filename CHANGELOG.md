@@ -4,6 +4,10 @@ All notable changes to this package are documented here.
 
 ## 0.2.1 - 2026-07-28
 
+- Always return a list of issues. A store holding exactly one issue made `bd list`
+  indistinguishable from `bd show`, whose array-of-one the adapter collapses - so a new
+  repository with a single bead handed the UI an object and the graph rendered nothing.
+
 - Resolve the Beads store from an explicitly passed environment rather than reading
   `process.env` directly, so a caller that isolates itself actually is isolated. The
   integration tests built their own store but still opened whatever an exported

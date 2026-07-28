@@ -152,3 +152,22 @@ test("reads reach the isolated fixture store through bd", integration, async () 
   assert.equal(typeof data.prefix, "string");
   assert.equal(typeof data.beadsDir, "string");
 });
+
+test("a store holding exactly one issue still returns a list", integration, async () => {
+  // `bd show` returns an array of one, so the adapter collapses that shape - and a store
+  // with exactly one issue makes `bd list` indistinguishable from it. A new repository
+  // with a single bead therefore handed the UI an object instead of an array and the
+  // graph rendered nothing. This is the count that used to break.
+  const created = await fetch(`${base}/api/issues`, {
+    method: "POST",
+    headers: { ...auth(), "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "the only bead" })
+  });
+  assert.equal(created.status, 200);
+
+  const listed = await fetch(`${base}/api/issues`, { headers: auth() });
+  const { data } = await listed.json();
+  assert.ok(Array.isArray(data.issues), "issues must always be an array");
+  assert.equal(data.issues.length, 1);
+  assert.equal(data.issues[0].title, "the only bead");
+});
