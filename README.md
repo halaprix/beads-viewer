@@ -33,6 +33,25 @@ In 0.2.0:
 5. **Drag to connect a dependency**, select an edge to remove it. Grouped edges are read-only until expanded. `bd` rejects cycles for us, and the rejection is surfaced verbatim.
 6. **Live refresh** — a human or an agent running `bd` in a terminal shows up in the UI within about a second.
 
+## Testing
+
+- `npm test` — pure-logic tests: the graph model, layout, and browser-detection helpers.
+  No `bd` needed, always safe to run.
+- `npm run test:integration` — spins up a real server against a real, isolated Beads
+  store. Needs `bd` on `PATH`.
+- `npm run test:smoke` — installs the real published tarball and separately renders the
+  built page in headless Chromium, asserting the canvas has real size, the node count
+  matches the store, and there are zero console errors and zero failed requests. Needs
+  `bd` and `npx playwright install chromium`.
+
+All three ran in this repository's own past releases and none of them would have caught
+the bugs that actually shipped: a broken CLI entry point, a dead change-detection path, a
+404'd lazily-loaded chunk, a zero-height canvas, and a store with exactly one issue
+collapsing to a single object instead of a list. Every one of those only failed when the
+real, built, installed, rendered artifact was exercised - which is what
+`test:integration` and `test:smoke` exist to do, and why CI now runs them rather than
+only the pure-logic suite.
+
 ## Requirements
 
 - Node >= 22.13.0

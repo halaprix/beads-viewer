@@ -29,6 +29,53 @@ jobs:
       - run: npm run lint
       - run: node --test test/browser.test.mjs
       - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts
+      - run: node --test test/assets.test.mjs
+
+      # ci.yml also runs on a tag push, but GitHub Actions has no way to make this job
+      # depend on a job in a different workflow file - so without running the full
+      # battery here too, a release could publish even if that other run failed. This is
+      # the one gate a broken package cannot get past.
+      - name: Install bd
+        # --allow-scripts is required: newer npm blocks a dependency's postinstall by
+        # default (silently, exit 0, only a warning), and @beads/bd's postinstall is what
+        # fetches the actual Go binary. Without this the step "succeeds" while leaving no
+        # working `bd` on PATH, hasBd evaluates false, and the entire integration and
+        # smoke battery silently skips - green CI proving nothing, which is the exact
+        # failure mode this PR exists to close. Global installs have no project
+        # package.json to record an allowlist in, so the flag is the only mechanism.
+        # @beads/bd's own postinstall skips the binary download whenever CI is set,
+        # which GitHub Actions sets to "true" on every runner by default - so the
+        # install step exited 0, printed nothing, and left no binary, all silently.
+        # That is @beads/bd being conservative by design, not a bug in it; overriding
+        # CI for this one step is the correct fix, not a workaround.
+        env:
+          CI: ""
+        run: npm install -g --allow-scripts=@beads/bd @beads/bd
+
+      # Fail loudly here rather than silently later: without this, an install that
+      # "succeeds" but leaves no working bd on PATH makes every integration and smoke
+      # test below report SKIP rather than FAIL - a green job that tested nothing, which
+      # is the exact bug this install step was added to fix in the first place.
+      - name: Verify bd actually works
+        run: bd version
+
+      - name: Install Chromium for the render smoke test
+        run: npx playwright install --with-deps chromium
+      - name: Integration and smoke tests
+        run: |
+          node --test test/security.test.mjs
+          node --test test/cli.test.mjs
+          node --test test/package.test.mjs
+          node --test test/boundary.test.mjs
+          node --test test/smoke.test.mjs
+
+      - name: Upload the render smoke screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshot-${{ github.ref_name }}
+          path: test-results/smoke.png
+          if-no-files-found: ignore
 
       # Pinned to 11, which supports every Node the runner might carry. npm 12 requires
       # ^22.22 || ^24.15 and would fail the job on an older runner image.

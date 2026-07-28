@@ -21,8 +21,63 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
-      # Only the pure-logic tests run here. The security and CLI suites drive a real
-      # `bd` binary against a real store, which CI has no way to provide - so they are
-      # a local gate, not a CI one. Pretending otherwise would be worse than saying it.
+
+      # Fast checks run on every leg. bd, Playwright's browser, and the full integration
+      # and smoke battery only run once, on the newer runtime - doubling browser/binary
+      # downloads across the matrix would cost real minutes for no extra coverage.
       - run: node --test test/browser.test.mjs
       - run: node --test --experimental-strip-types test/model.test.ts test/layout.test.ts
+      - run: node --test test/assets.test.mjs
+
+      - name: Install bd
+        if: matrix.node-version == '24'
+        # The npm package, not the curl|sh install script: it fits the existing
+        # toolchain and avoids executing an arbitrary remote shell script in CI.
+        #
+        # --allow-scripts is required: newer npm blocks a dependency's postinstall by
+        # default (silently, exit 0, only a warning), and @beads/bd's postinstall is what
+        # fetches the actual Go binary. Without this the step "succeeds" while leaving no
+        # working `bd` on PATH, hasBd evaluates false, and the entire integration and
+        # smoke battery silently skips - green CI proving nothing, which is the exact
+        # failure mode this PR exists to close. Global installs have no project
+        # package.json to record an allowlist in, so the flag is the only mechanism.
+        # @beads/bd's own postinstall skips the binary download whenever CI is set,
+        # which GitHub Actions sets to "true" on every runner by default - so the
+        # install step exited 0, printed nothing, and left no binary, all silently.
+        # That is @beads/bd being conservative by design, not a bug in it; overriding
+        # CI for this one step is the correct fix, not a workaround.
+        env:
+          CI: ""
+        run: npm install -g --allow-scripts=@beads/bd @beads/bd
+
+      # Fail loudly here rather than silently later: without this, an install that
+      # "succeeds" but leaves no working bd on PATH makes every integration and smoke
+      # test below report SKIP rather than FAIL - a green job that tested nothing, which
+      # is the exact bug this install step was added to fix in the first place.
+      - name: Verify bd actually works
+        if: matrix.node-version == '24'
+        run: bd version
+
+      - name: Install Chromium for the render smoke test
+        if: matrix.node-version == '24'
+        run: npx playwright install --with-deps chromium
+
+      # These previously ran nowhere in CI - only locally, wherever a developer happened
+      # to have `bd` on PATH - which is exactly the gap that let four real bugs reach a
+      # published release behind a green suite.
+      - name: Integration and smoke tests
+        if: matrix.node-version == '24'
+        run: |
+          node --test test/security.test.mjs
+          node --test test/cli.test.mjs
+          node --test test/package.test.mjs
+          node --test test/boundary.test.mjs
+          node --test test/smoke.test.mjs
+
+      - name: Upload the render smoke screenshot
+        if: matrix.node-version == '24' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshot
+          path: test-results/smoke.png
+          if-no-files-found: ignore
