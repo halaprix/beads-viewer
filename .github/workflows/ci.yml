@@ -41,6 +41,13 @@ jobs:
         # smoke battery silently skips - green CI proving nothing, which is the exact
         # failure mode this PR exists to close. Global installs have no project
         # package.json to record an allowlist in, so the flag is the only mechanism.
+        # @beads/bd's own postinstall skips the binary download whenever CI is set,
+        # which GitHub Actions sets to "true" on every runner by default - so the
+        # install step exited 0, printed nothing, and left no binary, all silently.
+        # That is @beads/bd being conservative by design, not a bug in it; overriding
+        # CI for this one step is the correct fix, not a workaround.
+        env:
+          CI: ""
         run: npm install -g --allow-scripts=@beads/bd @beads/bd
 
       # Fail loudly here rather than silently later: without this, an install that
