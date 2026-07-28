@@ -25,7 +25,7 @@ export class BdError extends Error {
   }
 }
 
-function run(argv, { beadsDir, bin = "bd", cwd = process.cwd() }) {
+function run(argv, { beadsDir, bin = "bd", cwd = process.cwd(), env = process.env }) {
   return new Promise((resolve, reject) => {
     // shell: false is the default and must stay that way. Node's own docs say never
     // to pass unsanitized input to a shell, and `shell: true` with an args array is
@@ -38,8 +38,8 @@ function run(argv, { beadsDir, bin = "bd", cwd = process.cwd() }) {
       cwd,
       timeout: TIMEOUT_MS,
       env: {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
+        PATH: env.PATH,
+        HOME: env.HOME,
         // Always explicit: an inherited BEADS_DIR wins over repository discovery and
         // would route every read and write into a different project's store.
         BEADS_DIR: beadsDir
@@ -120,7 +120,7 @@ function assertArgs(args) {
   }
 }
 
-export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
+export function createBd({ beadsDir, bin = "bd", cwd = process.cwd(), env = process.env }) {
   // Serialized deliberately, not for safety alone: bd opens the database in-process,
   // so concurrent writes contend on its lock, and the cost is startup rather than
   // overlappable I/O. Parallelism buys nothing here and loses lock errors.
@@ -141,7 +141,7 @@ export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
     assertArgs(args);
     // --readonly is free privilege separation: it genuinely refuses every mutation.
     const argv = ["--readonly", "--json", command, ...args];
-    return parse(await run(argv, { beadsDir, bin, cwd }), argv);
+    return parse(await run(argv, { beadsDir, bin, cwd, env }), argv);
   }
 
   async function write(command, args = []) {
@@ -150,7 +150,7 @@ export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
     }
     assertArgs(args);
     const argv = ["--json", command, ...args];
-    return enqueue(async () => parse(await run(argv, { beadsDir, bin, cwd }), argv));
+    return enqueue(async () => parse(await run(argv, { beadsDir, bin, cwd, env }), argv));
   }
 
   return {
@@ -167,7 +167,7 @@ export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
     // literally named "-" rather than using stdout.
     async exportRecords() {
       const argv = ["--readonly", "export"];
-      const result = await run(argv, { beadsDir, bin, cwd });
+      const result = await run(argv, { beadsDir, bin, cwd, env });
       if (result.code !== 0) {
         throw new BdError(failureMessage(result, argv), result);
       }
@@ -183,9 +183,13 @@ export function createBd({ beadsDir, bin = "bd", cwd = process.cwd() }) {
 // Resolves the store from bd itself rather than assuming `.beads/`. An exported
 // BEADS_DIR silently overrides repository discovery, so guessing the path is how you
 // end up reading a different project's issues and believing it is yours.
-export async function resolveStore({ cwd = process.cwd(), bin = "bd" } = {}) {
+// `env` is a parameter rather than a read of process.env so a caller can genuinely
+// isolate itself. Reading the ambient value here meant a test that built its own store
+// still opened whatever an exported BEADS_DIR pointed at - isolation that only held on a
+// machine that had none.
+export async function resolveStore({ cwd = process.cwd(), bin = "bd", env = process.env } = {}) {
   const argv = ["--readonly", "--json", "where"];
-  const result = await run(argv, { beadsDir: process.env.BEADS_DIR ?? "", bin, cwd });
+  const result = await run(argv, { beadsDir: env.BEADS_DIR ?? "", bin, cwd, env });
   if (result.code !== 0) {
     throw new BdError(
       `bd could not resolve a Beads store from ${cwd}. Run \`bd init --quiet\` first.`,
@@ -199,5 +203,12 @@ export async function resolveStore({ cwd = process.cwd(), bin = "bd" } = {}) {
       result
     );
   }
-  return { beadsDir: where.path, databasePath: where.database_path, prefix: where.prefix };
+  // `prefix` is absent for a store initialised without one, so it is explicitly null
+  // rather than undefined - printing "undefined" as a project name is worse than omitting
+  // it, and null is a value callers can test.
+  return {
+    beadsDir: where.path,
+    databasePath: where.database_path,
+    prefix: where.prefix ?? null
+  };
 }

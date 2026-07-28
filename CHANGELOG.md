@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented here.
 
+## 0.2.1 - 2026-07-28
+
+- Resolve the Beads store from an explicitly passed environment rather than reading
+  `process.env` directly, so a caller that isolates itself actually is isolated. The
+  integration tests built their own store but still opened whatever an exported
+  `BEADS_DIR` pointed at, which passed wherever that variable was unset.
+- Report a store with no prefix as `null` instead of `undefined`, and print `(no prefix)`
+  rather than the word `undefined` as a project name.
+
 ## 0.2.0 - 2026-07-27
 
 - Open the viewer in the default browser when a desktop session is available.

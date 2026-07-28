@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -14,6 +15,9 @@ import {
 // startServer returns `address` as a value and cli.mjs called it as a function. Nothing
 // launched the binary, so nothing noticed. Import-level tests cannot cover a process.
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "server", "cli.mjs");
+const VERSION = JSON.parse(
+  readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")
+).version;
 let workspace;
 
 test.before(async () => {
@@ -60,7 +64,9 @@ function launch(args = [], { cwd = workspace } = {}) {
 test("help and version work without a Beads store", async () => {
   for (const [args, pattern] of [
     [["--help"], /Usage:\s+beads-viewer/],
-    [["--version"], /^0\.2\.0\s*$/]
+    // Read from package.json rather than hardcoded: a literal here turns every version
+    // bump into a spurious test failure, which trains people to edit tests to match.
+    [["--version"], new RegExp(`^${VERSION.replace(/\./g, "\\.")}\\s*$`)]
   ]) {
     const instance = launch(args, { cwd: process.cwd() });
     const output = await new Promise((resolve) => {

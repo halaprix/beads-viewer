@@ -1,6 +1,6 @@
 {
   "name": "@halaprix/beads-viewer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local-first interactive dependency graph editor for Beads issues.",
   "keywords": [
     "beads",

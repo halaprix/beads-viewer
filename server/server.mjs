@@ -79,9 +79,9 @@ function requirePriority(body, field = "priority") {
   return String(value);
 }
 
-export async function startServer({ port = 7373, host = "127.0.0.1", cwd = process.cwd(), distDir } = {}) {
-  const store = await resolveStore({ cwd });
-  const bd = createBd({ beadsDir: store.beadsDir, cwd });
+export async function startServer({ port = 7373, host = "127.0.0.1", cwd = process.cwd(), distDir, env = process.env } = {}) {
+  const store = await resolveStore({ cwd, env });
+  const bd = createBd({ beadsDir: store.beadsDir, cwd, env });
   const token = createToken();
   const clients = new Set();
 

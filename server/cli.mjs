@@ -103,7 +103,7 @@ async function main() {
   // "localhost" while binding 0.0.0.0, which is how that bug survived so long.
   const bound = server.address;
   if (process.stdout.isTTY) {
-    process.stdout.write(`\n  beads-viewer  ${server.store.prefix}\n`);
+    process.stdout.write(`\n  beads-viewer  ${server.store.prefix ?? "(no prefix)"}\n`);
     process.stdout.write(`  store         ${server.store.beadsDir}\n`);
     process.stdout.write(`  bound         ${bound.address}:${bound.port}\n\n`);
     process.stdout.write(`  Local:        ${server.url}\n\n`);

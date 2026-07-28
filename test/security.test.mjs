@@ -4,6 +4,7 @@ import { request } from "node:http";
 import { startServer } from "../server/server.mjs";
 import {
   createBeadsWorkspace,
+  fixtureEnv,
   hasBd,
   removeBeadsWorkspace
 } from "./beads-fixture.mjs";
@@ -35,7 +36,10 @@ let workspace;
 test.before(async () => {
   if (!hasBd) return;
   workspace = await createBeadsWorkspace();
-  server = await startServer({ port: 7391, cwd: workspace });
+  // fixtureEnv() strips BEADS_DIR. Without it the server resolves whatever an exported
+  // BEADS_DIR points at, so a suite that builds its own store would still read another
+  // one - and would only fail on a machine that has the variable set.
+  server = await startServer({ port: 7391, cwd: workspace, env: fixtureEnv() });
 });
 
 test.after(async () => {
