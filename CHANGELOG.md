@@ -2,6 +2,17 @@
 
 All notable changes to this package are documented here.
 
+## 0.3.0 - 2026-07-28
+
+- Test the shipped artifact, not just the source: a packaged-artifact smoke test
+  (`npm pack`, install, run, hit every endpoint), a Playwright render smoke test (real
+  page, real store, non-zero canvas, zero console errors, zero failed requests), an
+  asset-manifest consistency check, live-refresh delivery over SSE, and boundary-count
+  tests at 0/1/2 issues plus an epic with one child.
+- CI now installs `bd` and runs the full integration and smoke battery, on both the
+  regular pipeline and the release pipeline directly - previously these tests existed
+  but ran nowhere in CI at all.
+
 ## 0.2.1 - 2026-07-28
 
 - Always return a list of issues. A store holding exactly one issue made `bd list`

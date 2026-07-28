@@ -3,3 +3,4 @@ dist/
 .beads/
 .resources/
 *.log
+test-results/

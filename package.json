@@ -1,6 +1,6 @@
 {
   "name": "@halaprix/beads-viewer",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Local-first interactive dependency graph editor for Beads issues.",
   "keywords": [
     "beads",
@@ -39,7 +39,9 @@
     "lint": "oxlint",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:integration": "node --test test/security.test.mjs test/cli.test.mjs test/package.test.mjs test/boundary.test.mjs",
+    "test:smoke": "node --test test/smoke.test.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -59,6 +61,7 @@
     "@xyflow/react": "^12.11.2",
     "elkjs": "^0.12.0",
     "oxlint": "^1.40.0",
+    "playwright": "^1.62.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "~7.0.2",

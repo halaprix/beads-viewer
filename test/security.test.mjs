@@ -171,3 +171,45 @@ test("a store holding exactly one issue still returns a list", integration, asyn
   assert.equal(data.issues.length, 1);
   assert.equal(data.issues[0].title, "the only bead");
 });
+
+test("a write actually produces an SSE frame, and the version token moves", integration, async () => {
+  // The bug this pins: change detection watched the wrong Dolt directory, so the version
+  // token never moved and no frame was ever pushed. Every other SSE test only checked
+  // that the route requires a token - none of them proved the stream delivers anything.
+  const before = (await (await fetch(`${base}/api/store`, { headers: auth() })).json()).data.version;
+
+  const controller = new AbortController();
+  const framePromise = (async () => {
+    const response = await fetch(`${base}/api/events`, { headers: auth(), signal: controller.signal });
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = "";
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      if (buffer.includes("event: store-changed")) {
+        const id = /id: (\S+)/.exec(buffer)?.[1];
+        return id;
+      }
+    }
+    throw new Error(`no store-changed frame within 5s. Received:\n${buffer}`);
+  })();
+
+  // Give the stream a moment to attach before the write that must be observed on it.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const created = await fetch(`${base}/api/issues`, {
+    method: "POST",
+    headers: { ...auth(), "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "should trigger a live refresh" })
+  });
+  assert.equal(created.status, 200);
+
+  const pushedId = await framePromise;
+  controller.abort();
+
+  assert.notEqual(pushedId, before, "the pushed version must differ from the pre-write version");
+
+  const after = (await (await fetch(`${base}/api/store`, { headers: auth() })).json()).data.version;
+  assert.equal(pushedId, after, "the id on the pushed frame must match the store's new version");
+});

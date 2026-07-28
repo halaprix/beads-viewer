@@ -18,7 +18,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 // A hardcoded manifest, never "any path minus a denylist". Seven separate Vite CVEs
 // exist because denylists lose: ?raw??, ?import, .svg, invalid request targets,
 // symlinks, and an html fallback that skipped the check entirely.
-const STATIC_FILES = new Map([
+export const STATIC_FILES = new Map([
   ["/", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/index.html", { file: "index.html", type: "text/html; charset=utf-8" }],
   ["/app.js", { file: "app.js", type: "text/javascript; charset=utf-8" }],
