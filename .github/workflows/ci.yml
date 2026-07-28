@@ -33,7 +33,23 @@ jobs:
         if: matrix.node-version == '24'
         # The npm package, not the curl|sh install script: it fits the existing
         # toolchain and avoids executing an arbitrary remote shell script in CI.
-        run: npm install -g @beads/bd
+        #
+        # --allow-scripts is required: newer npm blocks a dependency's postinstall by
+        # default (silently, exit 0, only a warning), and @beads/bd's postinstall is what
+        # fetches the actual Go binary. Without this the step "succeeds" while leaving no
+        # working `bd` on PATH, hasBd evaluates false, and the entire integration and
+        # smoke battery silently skips - green CI proving nothing, which is the exact
+        # failure mode this PR exists to close. Global installs have no project
+        # package.json to record an allowlist in, so the flag is the only mechanism.
+        run: npm install -g --allow-scripts=@beads/bd @beads/bd
+
+      # Fail loudly here rather than silently later: without this, an install that
+      # "succeeds" but leaves no working bd on PATH makes every integration and smoke
+      # test below report SKIP rather than FAIL - a green job that tested nothing, which
+      # is the exact bug this install step was added to fix in the first place.
+      - name: Verify bd actually works
+        if: matrix.node-version == '24'
+        run: bd version
 
       - name: Install Chromium for the render smoke test
         if: matrix.node-version == '24'
